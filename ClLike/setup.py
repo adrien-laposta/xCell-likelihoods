@@ -10,7 +10,7 @@ setup(
     install_requires=[
         "cobaya>=3.0",
         "sacc>=0.4.2",
-        "pyccl",
+        #"pyccl",
         "numpy",
         "scipy"
     ],

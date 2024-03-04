@@ -453,7 +453,7 @@ class xyshearLike(Likelihood):
 
 
     def get_requirements(self):
-        return {par: None for par in ["lMc", "gamma", "alpha_T", "eta_b"]}
+        return {par: None for par in ["lMc", "gamma", "alpha_T", "eta_b", "logTw0", "Tw1", "beta", "epsilon", "alpha_Tz", "alpha_Tm"]}
 
     def logp(self, **kwargs):
         

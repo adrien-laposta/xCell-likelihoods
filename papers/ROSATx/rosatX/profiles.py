@@ -527,7 +527,9 @@ class _HaloProfileHE(ccl.halos.HaloProfile):
                  lMc=14.0, beta=0.6, gamma=1.17,
                  A_star=0.03, sigma_star=1.2,
                  eta_b=0.5,
-                 alpha_T=1.0, logTw0=6.5, Tw1=0.0,
+                 alpha_T=1.0, alpha_Tz=0., alpha_Tm=0.,
+                 logTw0=6.5, Tw1=0.0,
+                 epsilon=1.0,
                  logTAGN=None,
                  kind="rho_gas",
                  quantity="density"):
@@ -541,8 +543,11 @@ class _HaloProfileHE(ccl.halos.HaloProfile):
         self.A_star = A_star
         self.eta_b = eta_b
         self.alpha_T = alpha_T
+        self.alpha_Tz = alpha_Tz
+        self.alpha_Tm = alpha_Tm
         self.logTw0 = logTw0
         self.Tw1 = Tw1
+        self.epsilon = epsilon
         self.sigma_star = sigma_star
         self.kind = kind
         self.quantity = quantity
@@ -567,8 +572,11 @@ class _HaloProfileHE(ccl.halos.HaloProfile):
                           A_star=None,
                           sigma_star=None,
                           alpha_T=None,
+                          alpha_Tz=None,
+                          alpha_Tm=None,
                           logTw0=None,
                           Tw1=None,
+                          epsilon=None,
                           eta_b=None,
                           logTw=None,
                           logTAGN=None):
@@ -581,6 +589,8 @@ class _HaloProfileHE(ccl.halos.HaloProfile):
             self.logTw0 = logTw0
         if Tw1 is not None:
             self.Tw1 = Tw1
+        if epsilon is not None:
+            self.epsilon = epsilon
         if beta is not None:
             self.beta = beta
         if gamma is not None:
@@ -593,6 +603,10 @@ class _HaloProfileHE(ccl.halos.HaloProfile):
             self.sigma_star = sigma_star
         if alpha_T is not None:
             self.alpha_T = alpha_T
+        if alpha_Tz is not None:
+            self.alpha_Tz = alpha_Tz
+        if alpha_Tm is not None:
+            self.alpha_Tm = alpha_Tm
 
     def _build_BAHAMAS_interp(self):
         if self._Bi is not None:
@@ -651,6 +665,7 @@ class _HaloProfileHE(ccl.halos.HaloProfile):
         rDelta = self.mass_def.get_radius(cosmo, M_use, a) / a
         cM = self.concentration(cosmo, M_use, a)
         rs = rDelta/cM
+        rs *= self.epsilon
         x = r_use[None, :] / rs[:, None]
 
         # Mass fractions
@@ -684,7 +699,9 @@ class _HaloProfileHE(ccl.halos.HaloProfile):
             # I.e. gravitational potential of a proton 1Mpc away from the sun
             # in eV.
             T_bound_shape = np.log(1+x)/x
-            T_bound_num = 2 * self.alpha_T * G_mp * mu_p * M_use
+
+            alpha_T = self.alpha_T * (a**self.alpha_Tz) * (M_use * 1e-14)**self.alpha_Tm
+            T_bound_num = 2 * alpha_T * G_mp * mu_p * M_use
             T_bound_den = 3 * a * rDelta
             T_bound = (T_bound_num / T_bound_den)[:, None] * T_bound_shape
 
@@ -706,7 +723,12 @@ class HaloProfileDensityHE(_HaloProfileHE):
                  A_star=0.03,
                  sigma_star=1.2,
                  eta_b=0.5,
+                 epsilon=1.0,
                  alpha_T=1.0,
+                 alpha_Tz=0.,
+                 alpha_Tm=0.,
+                 logTw0=6.5,
+                 Tw1=0.,
                  kind="rho_gas"):
         super().__init__(mass_def=mass_def, concentration=concentration,
                          lMc=lMc,
@@ -715,7 +737,12 @@ class HaloProfileDensityHE(_HaloProfileHE):
                          A_star=A_star,
                          sigma_star=sigma_star,
                          eta_b=eta_b,
+                         epsilon=epsilon,
                          alpha_T=alpha_T,
+                         alpha_Tz=alpha_Tz,
+                         alpha_Tm=alpha_Tm,
+                         logTw0=logTw0,
+                         Tw1=Tw1,                        
                          kind=kind,
                          quantity="density")
 
@@ -728,7 +755,12 @@ class HaloProfilePressureHE(_HaloProfileHE):
                  A_star=0.03,
                  sigma_star=1.2,
                  eta_b=0.5,
+                 epsilon=1.0,
                  alpha_T=1.0,
+                 alpha_Tz=0.,
+                 alpha_Tm=0.,
+                 logTw0=6.5,
+                 Tw1=0.,
                  kind="rho_gas"):
         super().__init__(mass_def=mass_def, concentration=concentration,
                          lMc=lMc,
@@ -737,7 +769,12 @@ class HaloProfilePressureHE(_HaloProfileHE):
                          A_star=A_star,
                          sigma_star=sigma_star,
                          eta_b=eta_b,
+                         epsilon=epsilon,
                          alpha_T=alpha_T,
+                         alpha_Tz=alpha_Tz,
+                         alpha_Tm=alpha_Tm,
+                         logTw0=logTw0,
+                         Tw1=Tw1,
                          kind=kind,
                          quantity="pressure")
         
@@ -797,6 +834,7 @@ class HaloProfilePressureHE(_HaloProfileHE):
         rDelta = self.mass_def.get_radius(cosmo, M_use, a) / a
         cM = self.concentration(cosmo, M_use, a)
         rs = rDelta/cM
+        rs *= self.epsilon
         am3 = 1/a**3
         qs = k_use[None, :] * rs[:, None]
 
@@ -824,7 +862,10 @@ class HaloProfilePressureHE(_HaloProfileHE):
         # Gravitational constant in eV*(Mpc^4)/(cm^3*Msun^2)
         mu_p = 0.61  # See footnote 8 in arXiv:2005.00009
         G_mp = 4.49158049E-11
-        T_bound_num = 2 * self.alpha_T * G_mp * mu_p * M_use
+
+        alpha_T = self.alpha_T * (a ** self.alpha_Tz) * (M_use * 1e-14) ** self.alpha_Tm
+
+        T_bound_num = 2 * alpha_T * G_mp * mu_p * M_use
         T_bound_den = 3 * a * rDelta
         T_bound_norm = (T_bound_num / T_bound_den)[:, None]
 
@@ -874,6 +915,485 @@ class HaloProfilePressureHE(_HaloProfileHE):
 
         return fq 
 
+
+class _HaloProfileArico2020(ccl.halos.HaloProfile):
+    """Gas density profile given by the sum of the density profile for
+    the bound and the ejected gas, each modelled separetely for a halo
+    in hydrostatic equilibrium.
+
+    The density and mass fraction of the bound gas as well as the mass
+    fraction of the ejected gas taken from Mead 2020, and the density
+    of the ejected gas taken from Schneider & Teyssier 2016.
+
+    Profile is calculated in units of M_sun Mpc^-3 if
+    requesting mass density (`kind == 'rho_gas'`), or in cm^-3
+    if requesting a number density. Allowed values for `kind`
+    in the latter case are `'n_total'`, `'n_baryon'`, `'n_H'`,
+    `'n_electron'`.
+
+    Default values of all parameters correspond to the values
+    found in Mead et al. 2020.
+    """
+    def __init__(self, *, mass_def, concentration,
+                 lMc=14.0, beta=0.6, gamma=1.17,
+                 A_star=0.03, sigma_star=1.2,
+                 theta_in=0.05, theta_out=1.,
+                 beta_in=3., beta_out=4.,
+                 eta_b=0.5, alpha_T=1.0,
+                 alpha_Tz=0., alpha_Tm=0.,
+                 logTw0=6.5, Tw1=0.0,
+                 kind="rho_gas",
+                 quantity="density",
+                 sampling_interp=64,
+                 use_fftlog=False):
+        self.lMc = lMc
+        self.beta = beta
+        self.gamma = gamma
+        self.A_star = A_star
+        self.theta_in = theta_in
+        self.theta_out = theta_out
+        self.beta_in = beta_in
+        self.beta_out = beta_out
+        self.eta_b = eta_b
+        self.alpha_T = alpha_T
+        self.alpha_Tz = alpha_Tz
+        self.alpha_Tm = alpha_Tm
+        self.logTw0 = logTw0
+        self.Tw1 = Tw1
+        self.sigma_star = sigma_star
+        self.kind = kind
+        self.quantity = quantity
+        self.sampling_interp = sampling_interp
+        self.prefac_rho = get_prefac_rho(self.kind)
+        self.norm_interp = self.get_dens_norm_interp()
+        self._fourier_interp = None
+        self.use_fft_log = use_fftlog
+
+        super().__init__(mass_def=mass_def, concentration=concentration)
+
+        self.update_precision_fftlog(padding_hi_fftlog=1E2,
+                                     padding_lo_fftlog=1E-2,
+                                     n_per_decade=1000,
+                                     plaw_fourier=-2)
+        
+        if not self.use_fft_log:
+            self._fourier = self._fourier_approx
+
+        self._init_constants()
+    
+    def _init_constants(self):
+        """
+        """
+        class Const:
+            pass
+        self.const = Const()
+
+        self.const.mu_p = 0.61 # See footnote 8 in arXiv:2005.00009
+        self.const.G_mp = 4.49158049E-11 # Gravitational constant in eV*(Mpc^4)/(cm^3*Msun^2)
+        self.const.k_boltz = 8.61732814974493e-05
+
+    def update_parameters(self, **kwargs):
+        """
+        """
+        for k, v in kwargs.items():
+            if hasattr(self, k):
+                setattr(self, k, v)
+            else:
+                raise ValueError(f"Parameter {k} not found in HaloProfileArico2020")
+
+    def _theta_in(self, M_in, mu_in, theta_in):
+        """
+        """
+        if M_in is not None and mu_in is not None:
+            return 3. - (M_in / 1e14) ** mu_in
+        elif theta_in is not None:
+            return theta_in
+
+    def _profile_shape(self, x, p_in, p_out, itheta_in, itheta_out):
+        """
+        """
+        return 1 / ((1 + itheta_in * x)**p_in * (1 + (itheta_out * x)**2)**p_out)
+
+    def get_dens_norm_interp(self):
+        ith_ins = np.logspace(0.5, 2, self.sampling_interp)
+        ith_outs = np.logspace(0, 0.5, self.sampling_interp)
+        p_ins = np.linspace(-0.5, 3, self.sampling_interp)
+        p_outs = np.linspace(-0.5, 3, self.sampling_interp)
+        #norms = np.array([
+        #    [
+        #        [
+        #            [
+        #                quad(
+        #                    lambda r: r**2 * self._profile_shape(
+        #                        r, p_in, p_out, ith_in, ith_out
+        #                    ), 0, 1.
+        #                )[0] for ith_in in ith_ins
+        #            ] for ith_out in ith_outs
+        #        ] for p_in in p_ins
+        #    ] for p_out in p_outs
+        #])
+        norms = np.array([
+            [quad(
+                lambda r: r**2 * self._profile_shape(
+                    r, p_in, 2., ith_in, 1.
+                ), 0, 1.)[0] for ith_in in ith_ins
+            ] for p_in in p_ins
+        ])
+
+        #ip = RegularGridInterpolator(
+        #    (p_outs, p_ins, np.log(ith_outs), np.log(ith_ins)),
+        #    np.log(norms)
+        #)
+        ip = RegularGridInterpolator(
+            (p_ins, np.log(ith_ins)),
+            np.log(norms)
+        )
+
+        return ip
+
+    def _get_fractions(self, cosmo, M):
+        fb = get_fb(cosmo)
+        Mbeta = (cosmo['h']*M*10**(-self.lMc))**self.beta
+        f_bound = fb*Mbeta/(1+Mbeta)
+        f_star = self.A_star * \
+            np.exp(-0.5*((np.log10(cosmo["h"]*M)-12.5)/self.sigma_star)**2)
+        f_ejected = fb-f_bound-f_star
+        return f_bound, f_ejected, f_star
+
+    def _bound_gas_temp(self, cosmo, var, M, a, space="real"):
+        """
+        """
+        var_use = np.atleast_1d(var)
+        M_use = np.atleast_1d(M)
+
+        rDelta = self.mass_def.get_radius(cosmo, M_use, a) / a
+
+        ith_in = 1 / self.theta_in
+        ith_out = 1 / self.theta_out
+
+        alpha_T = self.alpha_T * (a**self.alpha_Tz) * (M_use * 1e-14)**self.alpha_Tm
+        norm = (2 * alpha_T * self.const.G_mp * self.const.mu_p * M_use / (3 * a * rDelta))[:, None]
+
+        if space == "real":
+            x = var_use[None, :] / rDelta[:, None]
+            shape = self._profile_shape(x, self.beta_in * (self.gamma - 1),
+                                        self.beta_out * (self.gamma - 1),
+                                        ith_in, ith_out)
+
+        elif space == "fourier":
+            x = var_use[None, :] * rDelta[:, None]
+            pars_vec = np.transpose([
+                np.log(x).flatten(),
+                #np.full_like(x.flatten(), self.beta_out * (self.gamma - 1)),
+                np.full_like(x.flatten(), self.beta_in * (self.gamma - 1)),
+                #np.full_like(x.flatten(), np.log(ith_out)),
+                np.full_like(x.flatten(), np.log(ith_in))
+            ])
+            shape = np.exp(self._fourier_interp(pars_vec)).reshape([-1, len(var)])
+
+        return norm * shape
+
+    def _bound_gas_density(self, cosmo, var, M, a, space="real"):
+        """
+        """
+        var_use = np.atleast_1d(var)
+        M_use = np.atleast_1d(M)
+        am3 = 1/a**3
+
+        ith_in = 1 / self.theta_in
+        ith_out = 1 / self.theta_out
+
+        rDelta = self.mass_def.get_radius(cosmo, M_use, a) / a
+
+        # Mass fractions
+        fb, _, _ = self._get_fractions(cosmo, M)
+
+        pars_vec = np.transpose([
+            #self.beta_out,
+            self.beta_in,
+            #np.log(ith_out),
+            np.log(ith_in)
+        ])
+        norm_interp = np.exp(self.norm_interp(pars_vec))
+
+        if space == "real":
+            x = var_use[None, :] / rDelta[:, None]
+            shape = self._profile_shape(x, self.beta_in, self.beta_out, ith_in, ith_out)
+            norm = (am3*M_use*fb/(4*np.pi*rDelta**3*norm_interp))[:, None]
+
+        elif space == "fourier":
+            x = var_use[None, :] * rDelta[:, None]
+            pars_vec = np.transpose([
+                np.log(x).flatten(),
+                #np.full_like(x.flatten(), self.beta_out),
+                np.full_like(x.flatten(), self.beta_in),
+                #np.full_like(x.flatten(), np.log(ith_out)),
+                np.full_like(x.flatten(), np.log(ith_in))
+            ])
+            shape = np.exp(self._fourier_interp(pars_vec)).reshape([-1, len(var)])
+            norm = (am3*M_use*fb/norm_interp)[:, None]
+
+        return norm * shape * self.prefac_rho
+
+    def _bound_gas_pressure(self, cosmo, var, M, a, space="real"):
+        """
+        """
+        if space == "real":
+            dens = self._bound_gas_density(cosmo, var, M, a, space=space)
+            temp = self._bound_gas_temp(cosmo, var, M, a, space=space)
+            return dens * temp
+
+        if space == "fourier":
+            var_use = np.atleast_1d(var)
+            M_use = np.atleast_1d(M)
+            am3 = 1/a**3
+            rDelta = self.mass_def.get_radius(cosmo, M_use, a) / a
+
+            # Mass fractions
+            fb, _, _ = self._get_fractions(cosmo, M)
+
+            ith_in = 1 / self.theta_in
+            ith_out = 1 / self.theta_out
+
+            pars_vec = np.transpose([
+                #self.beta_out,
+                self.beta_in,
+                #np.log(ith_out),
+                np.log(ith_in)
+            ])
+            norm_interp = np.exp(self.norm_interp(pars_vec))
+
+            alpha_T = self.alpha_T * (a**self.alpha_Tz) * (M_use * 1e-14)**self.alpha_Tm
+
+            dens_norm = (am3*M_use*fb/norm_interp)[:, None] * self.prefac_rho
+            temp_norm = ((2 * alpha_T * self.const.G_mp * self.const.mu_p * M_use) / (3 * a * rDelta))[:, None]
+
+            x = var_use[None, :] * rDelta[:, None]
+            pars_vec = np.transpose([
+                np.log(x).flatten(),
+                #np.full_like(x.flatten(), self.beta_out * self.gamma),
+                np.full_like(x.flatten(), self.beta_in * self.gamma),
+                #np.full_like(x.flatten(), np.log(ith_out)),
+                np.full_like(x.flatten(), np.log(ith_in))
+            ])
+            shape = np.exp(self._fourier_interp(pars_vec)).reshape([-1, len(var)])
+
+            return dens_norm * temp_norm * shape
+
+    def _ejected_gas_density(self, cosmo, var, M, a, space="real"):
+        """ 
+        """
+        var_use = np.atleast_1d(var)
+        M_use = np.atleast_1d(M)
+        am3 = 1/a**3
+
+        # Mass fractions
+        _, fe, _ = self._get_fractions(cosmo, M)
+
+        Delta = self.mass_def.get_Delta(cosmo, a)
+        rDelta = self.mass_def.get_radius(cosmo, M_use, a) / a
+
+        # Concentation vector
+        cM = self.concentration(cosmo, M_use, a)
+
+        rs = rDelta/cM
+
+        # Ejected gas
+        # Eq. (2.13) of Schneider & Teyssier 2016
+        if space == "real":
+            x = var_use[None, :] / rs[:, None]
+            sigma = (self.eta_b * 0.375 * np.sqrt(Delta) * cM)[:, None]
+            norm = (am3*M_use*fe/rs**3)[:, None] / (2*np.pi*sigma**2)**1.5
+
+        elif space == "fourier":
+            x = var_use[None, :] * rs[:, None]
+            sigma = 1 / (self.eta_b * 0.375 * np.sqrt(Delta) * cM)[:, None]
+            norm = (am3*M_use*fe)[:, None]
+
+        rho_ejected = norm * np.exp(-0.5 * (x / sigma) ** 2)
+        
+        return rho_ejected * self.prefac_rho
+
+    def _ejected_gas_temp(self, a):
+        """
+        """
+        # Boltmann constant which, when multiplied by T in Kelvin
+        # gives you eV
+        T_ejected = self.const.k_boltz * 10**self.logTw0 * np.exp(self.Tw1*(1/a-1))
+
+        return T_ejected
+    
+    def _ejected_gas_pressure(self, cosmo, var, M, a, space="real"):
+        """
+        """
+        dens = self._ejected_gas_density(cosmo, var, M, a, space=space)
+        temp = self._ejected_gas_temp(a)
+
+        return dens * temp
+
+    def profile(self, cosmo, r, M, a, kind="all", space="real", quantity="density"):
+        """
+        """
+        func = {
+            "density": {
+                "ejected": self._ejected_gas_density,
+                "bound": self._bound_gas_density
+            },
+            "pressure": {
+                "ejected": self._ejected_gas_pressure,
+                "bound": self._bound_gas_pressure
+            },
+            "temperature": {
+                "ejected": self._ejected_gas_temp,
+                "bound": self._bound_gas_temp
+            }
+        }
+
+        f_profile = func[quantity]
+        P = []
+        if kind in ["all", "ejected"]:
+            prof_ejected = f_profile["ejected"](cosmo, r, M, a, space=space)
+            P.append(prof_ejected)
+
+        if kind in ["all", "bound"]:
+            prof_bound = f_profile["bound"](cosmo, r, M, a, space=space)
+            P.append(prof_bound)
+        
+        return np.sum(P, axis=0)
+
+    def _real(self, cosmo, r, M, a):
+        """
+        """
+        prof = self.profile(cosmo, r, M, a, kind="all", space="real", quantity=self.quantity)
+        if np.ndim(r) == 0:
+            prof = np.squeeze(prof, axis=-1)
+        if np.ndim(M) == 0:
+            prof = np.squeeze(prof, axis=0)
+
+        return prof
+
+    def _fourier_shape_interp(self):
+        """
+        """
+        qs = np.geomspace(1e-4, 1e2, 128)
+        ith_ins = np.logspace(0.5, 2, self.sampling_interp)
+        ith_outs = np.logspace(0, 0.5, self.sampling_interp)
+        p_ins = np.linspace(-0.5, 3, self.sampling_interp)
+        p_outs = np.linspace(-0.5, 3, self.sampling_interp)
+
+        #def integrand(x, p_in, p_out, ith_in, ith_out):
+        #    return x * self._profile_shape(x, p_in, p_out, ith_in, ith_out)
+        def integrand(x, p_in, ith_in):
+            return x * self._profile_shape(x, p_in, 2., ith_in, 1.)
+        
+        #fourier_integ = np.array(
+        #    [
+        #        [
+        #            [
+        #                [
+        #                    [quad(
+        #                        integrand,
+        #                        args=(p_in, p_out, ith_in, ith_out),
+        #                        a=1e-4,
+        #                        b=np.inf,
+        #                        weight="sin",
+        #                        wvar=q
+        #                    )[0] / q for ith_in in ith_ins
+        #                    ] for ith_out in ith_outs
+        #                ] for p_in in p_ins
+        #            ] for p_out in p_outs
+        #        ] for q in qs
+        #    ]
+        #)
+
+        fourier_integ = np.array(
+            [
+                [
+                    [quad(
+                        integrand,
+                        args=(p_in,ith_in),
+                        a=0.,
+                        b=2.,
+                        weight="sin",
+                        wvar=q
+                    )[0] / q for ith_in in ith_ins
+                    ] for p_in in p_ins
+                ] for q in qs
+            ]
+        )
+
+        #fourier_interpolator = RegularGridInterpolator(
+        #    (np.log(qs), p_outs, p_ins, np.log(ith_outs), np.log(ith_ins)),
+        #    np.log(fourier_integ),
+        #    fill_value=None,
+        #    bounds_error=False,
+        #    method="linear"
+        #)
+        fourier_interpolator = RegularGridInterpolator(
+            (np.log(qs), p_ins, np.log(ith_ins)),
+            np.log(fourier_integ),
+            fill_value=None,
+            bounds_error=False,
+            method="linear"
+        )
+
+        return fourier_interpolator
+
+    def _fourier_approx(self, cosmo, k, M, a):
+        """
+        """
+        if self._fourier_interp is None:
+            with ccl.UnlockInstance(self):
+                self._fourier_interp = self._fourier_shape_interp()
+
+        prof = self.profile(cosmo, k, M, a, kind="all", space="fourier", quantity=self.quantity)
+        if np.ndim(k) == 0:
+            prof = np.squeeze(prof, axis=-1)
+        if np.ndim(M) == 0:
+            prof = np.squeeze(prof, axis=0)
+
+        return prof
+
+class HaloProfileArico2020_Pressure(_HaloProfileArico2020):
+    def __init__(self, *, mass_def, concentration,
+                 lMc=14.0,
+                 beta=0.6,
+                 gamma=1.17,
+                 A_star=0.03,
+                 sigma_star=1.2,
+                 eta_b=0.5,
+                 alpha_T=1.0,
+                 alpha_Tz=0.,
+                 alpha_Tm=0.,
+                 theta_in=0.05, theta_out=1.,
+                 beta_in=3., beta_out=4.,
+                 logTw0=6.5,
+                 Tw1=0.,
+                 kind="rho_gas",
+                 sampling_interp=64,
+                 use_fftlog=False):
+
+        super().__init__(mass_def=mass_def, 
+                         concentration=concentration,
+                         lMc=lMc,
+                         beta=beta,
+                         gamma=gamma,
+                         A_star=A_star,
+                         sigma_star=sigma_star,
+                         eta_b=eta_b,
+                         alpha_T=alpha_T,
+                         alpha_Tz=alpha_Tz,
+                         alpha_Tm=alpha_Tm,
+                         theta_in=theta_in,
+                         theta_out=theta_out,
+                         beta_in=beta_in,
+                         beta_out=beta_out,
+                         logTw0=logTw0,
+                         Tw1=Tw1,
+                         kind=kind,
+                         quantity="pressure",
+                         sampling_interp=sampling_interp,
+                         use_fftlog=use_fftlog)
 
 class _HaloProfileNFW(ccl.halos.HaloProfile):
     """Simple gas density profile assuming NFW (times cosmic
@@ -1008,7 +1528,7 @@ class HaloProfileXray(ccl.halos.HaloProfile):
     transform numerically at very high k, and the intermediate
     slope gamma can be found by evaluating it around the pivot
     scale. `_get_fourier_params` precomputes all these parameters
-    as a function of mass and redshift for a given cosmology. The
+    as a function of mass and redshift for a given cos mology. The
     function `_get_fourier_num` can be used to calculate the
     Fourier transform exactly (but slowly) in order to check this
     approximation.

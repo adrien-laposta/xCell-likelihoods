@@ -8,5 +8,6 @@ from .profiles import (
     HaloProfilePressureHE,
     HaloProfileXray,
     HaloProfileNFWBaryon,
+    HaloProfileArico2020_Pressure,
     XrayTracer)
 from .like import ROSATxLike
